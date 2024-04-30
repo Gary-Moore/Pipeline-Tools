@@ -1,0 +1,86 @@
+version: '3'
+services:
+   db:
+    image: ${SQL_IMAGE}
+    environment:
+      SA_PASSWORD: ${SA_PASSWORD}
+      ACCEPT_EULA: ${ACCEPT_EULA}
+    ports:
+      - 1401:1433
+    healthcheck:
+      test: [ "CMD", "/opt/mssql-tools/bin/sqlcmd", "-U", "sa", "-P", "${SA_PASSWORD}", "-Q", "select 1"]
+      interval: 10s
+      retries: 10
+    volumes:
+      - sqlvolume:/var/opt/mssql
+   octopus-server:
+    image: octopusdeploy/octopusdeploy:${OCTOPUS_SERVER_TAG}
+    container_name: octopus
+    privileged: true
+    user: ${USER}
+    environment:
+      ACCEPT_EULA: ${ACCEPT_OCTOPUS_EULA}
+      OCTOPUS_SERVER_NODE_NAME: ${OCTOPUS_SERVER_NODE_NAME}
+      DB_CONNECTION_STRING: ${DB_CONNECTION_STRING}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      OCTOPUS_SERVER_BASE64_LICENSE: ${OCTOPUS_SERVER_BASE64_LICENSE}
+      MASTER_KEY: ${MASTER_KEY}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      DISABLE_DIND: ${DISABLE_DIND}
+    ports:
+      - 8080:8080
+      - 11111:10943
+    depends_on:
+      - db
+    volumes:
+      - repository:/repository
+      - artifacts:/artifacts
+      - taskLogs:/taskLogs
+      - cache:/cache
+      - import:/import
+   teamcity-server:
+    image: jetbrains/teamcity-server:${TEAMCITY_SERVER_TAG}
+    container_name: teamcity
+    ports:
+      - 8111:8111
+    volumes:
+      - datadirectory:/data/teamcity_server/datadir
+      - logs:/opt/teamcity/logs
+   teamcity-agent-1:
+    image: jetbrains/teamcity-agent:${TEAMCITY_AGENT_TAG}-linux-sudo
+    privileged: true
+    volumes:
+      - agent1_conf:/data/teamcity_agent/conf
+    environment:
+      - DOCKER_IN_DOCKER=start
+      - SERVER_URL=http://teamcity:8111
+   teamcity-agent-2:
+    image: jetbrains/teamcity-agent:${TEAMCITY_AGENT_TAG}-linux-sudo
+    privileged: true    
+    volumes:
+      - agent2_conf:/data/teamcity_agent/conf
+    environment:
+      - DOCKER_IN_DOCKER=start
+      - SERVER_URL=http://teamcity:8111
+   teamcity-agent-3:
+    image: jetbrains/teamcity-agent:${TEAMCITY_AGENT_TAG}-linux-sudo
+    privileged: true    
+    volumes:
+      - agent3_conf:/data/teamcity_agent/conf
+    environment:
+      - DOCKER_IN_DOCKER=start
+      - SERVER_URL=http://teamcity:8111
+volumes:
+  repository:
+  artifacts:
+  taskLogs:
+  cache:
+  import:
+  sqlvolume:
+  datadirectory:
+  logs:
+  agent1_conf:
+  agent2_conf:
+  agent3_conf:
